@@ -4,3 +4,4 @@ authlib
 requests
 gunicorn
 google-generativeai
+python-pptx
