@@ -114,7 +114,7 @@ def generate_ppt():
     if not prompt:
         return "Please input a topic description.", 400
         
-  ai_system_instruction = (
+    ai_system_instruction = (
         "You are an expert educational researcher and academic presentation maker. "
         "Generate an exhaustive, information-heavy presentation layout based on the user's prompt topic. "
         "Each slide MUST contain substantial information and deeply researched context. "
@@ -147,7 +147,6 @@ def generate_ppt():
     conn.commit()
     
     return redirect(url_for('view_presentation', ppt_id=ppt_id))
-
 @app.route('/presentation/<ppt_id>')
 @login_required
 def view_presentation(ppt_id):
