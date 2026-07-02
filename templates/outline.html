@@ -1,64 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review & Edit Workspace</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-<body class="bg-slate-950 min-h-screen p-6 text-white font-sans">
-    <div class="max-w-3xl mx-auto space-y-8">
-        <div>
-            <span class="text-[10px] uppercase font-bold tracking-widest text-violet-400 px-2.5 py-1 bg-violet-500/10 rounded-md border border-violet-500/20">Stage 2: Full Workspace Advanced Editor</span>
-            <h2 class="text-4xl font-black mt-3 text-white tracking-tight">Fine-Tune Content & Media Settings</h2>
-            <p class="text-slate-400 text-sm mt-1">Review topics, bullet structures, and mapped graphic assets before compiling the final slideshow player rendering frames.</p>
-        </div>
+<!-- Slide Card Container -->
+<div class="bg-slate-900 border border-slate-800 rounded-xl p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+  
+  <!-- Left Side: Written Content (Spans 7 columns if assets exist) -->
+  <div class="{% if slide.image_query or slide.chart_data %}md:col-span-7{% else %}md:col-span-12{% endif %} space-y-4">
+    <h3 class="text-xl font-bold text-white">{{ slide.title }}</h3>
+    <ul class="space-y-2 text-slate-300 text-sm list-disc pl-4">
+      {% for bullet in slide.bullets %}
+        <li>{{ bullet }}</li>
+      {% endfor %}
+    </ul>
+  </div>
 
-        <form action="/generate/final" method="POST" class="space-y-6">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Main Presentation Title</label>
-                <input type="text" name="title" value="{{ title }}" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-violet-500 font-bold outline-none">
-            </div>
-
-            <div class="space-y-6">
-                {% for slide in slides %}
-                 {% set slide_index = loop.index0 %}
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
-                    <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                        <span class="text-xs font-black bg-violet-600/20 text-violet-400 border border-violet-500/20 px-2.5 py-1 rounded-md">Slide {{ loop.index }}</span>
-                        <input type="text" name="headings" value="{{ slide.heading }}" class="flex-grow bg-transparent text-lg font-bold text-white focus:text-violet-400 outline-none">
-                    </div>
-                    
-                    <input type="hidden" name="image_query_{{ loop.index0 }}" value="{{ slide.image_query or '' }}">
-                    <input type="hidden" name="chart_labels_{{ loop.index0 }}" value='{{ slide.chart_data.labels | tojson if slide.chart_data else "" }}'>
-                    <input type="hidden" name="chart_data_{{ loop.index0 }}" value='{{ slide.chart_data.data | tojson if slide.chart_data else "" }}'>
-
-                    <div class="space-y-3">
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bullet Points (Information Strings)</label>
-                        {% for bullet in slide.bullets %}
-                        <div class="flex items-start space-x-2">
-                            <span class="text-violet-500 mt-2.5 text-xs">•</span>
-                            <textarea name="bullets_slide_{{ loop.index0 }}" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:border-slate-700 outline-none font-medium leading-relaxed">{{ bullet }}</textarea>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    
-                    {% if slide.image_query or slide.chart_data %}
-                    <div class="text-[11px] font-bold text-emerald-400 flex items-center space-x-2 bg-emerald-500/5 px-3 py-1.5 rounded-lg border border-emerald-500/10">
-                        <span>📊 Visual Assets Attached:</span>
-                        {% if slide.image_query %}<span class="bg-slate-950 px-2 py-0.5 rounded text-slate-300">Unsplash Keyword: "{{ slide.image_query }}"</span>{% endif %}
-                        {% if slide.chart_data %}<span class="bg-slate-950 px-2 py-0.5 rounded text-slate-300">Data Graph Active</span>{% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-
-            <div class="pt-4 flex items-center justify-between border-t border-slate-900">
-                <a href="/dashboard" class="text-sm text-slate-500 hover:text-white font-semibold transition">&larr; Cancel Project</a>
-                <button type="submit" class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold px-8 py-3.5 rounded-xl shadow-xl shadow-violet-600/20 transition cursor-pointer">🪄 Compile Presentation Deck →</button>
-            </div>
-        </form>
+  <!-- Right Side: Exact Asset Positioning (Spans 5 columns) -->
+  {% if slide.image_query or slide.chart_data %}
+  <div class="md:col-span-5 w-full flex flex-col space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
+    
+    <!-- Image Box Placement -->
+    {% if slide.image_query %}
+    <div class="overflow-hidden rounded-lg border border-slate-800 bg-slate-900 aspect-video relative flex items-center justify-center">
+      <!-- Live Unsplash Image Injection -->
+      <img src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80" alt="Slide Graphic" class="w-full h-full object-cover absolute inset-0 opacity-80" />
+      <span class="absolute bottom-2 left-2 bg-slate-950/80 text-[10px] text-emerald-400 px-2 py-0.5 rounded border border-emerald-800/40">
+        📷 Asset Location: {{ slide.image_query }}
+      </span>
     </div>
-</body>
-</html>
+    {% endif %}
+
+    <!-- Precise Chart Box Placement -->
+    {% if slide.chart_data %}
+    <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800/80">
+      <div class="text-[11px] font-bold text-violet-400 mb-2 flex items-center space-x-1">
+        <span>📊 Data Visualization Platform</span>
+      </div>
+      <!-- Placeholder for JS charting framework like Chart.js or ApexCharts -->
+      <div class="h-32 flex items-end justify-between px-4 pt-4 border-b border-l border-slate-700">
+        <div class="w-6 bg-violet-500 rounded-t-sm h-[40%]"></div>
+        <div class="w-6 bg-indigo-500 rounded-t-sm h-[75%]"></div>
+        <div class="w-6 bg-emerald-500 rounded-t-sm h-[60%]"></div>
+        <div class="w-6 bg-cyan-500 rounded-t-sm h-[95%]"></div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+</div>
