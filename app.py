@@ -7,11 +7,9 @@ import os
 import json
 from datetime import datetime
 
-# Configuring absolute root fallback directories handles structural typos automatically
 app = Flask(__name__, template_folder='.')
 app.secret_key = os.environ.get('SECRET_KEY', '7ca46c82d8a64db9bd4e23cfb8a0df12')
 
-# Configure Gemini AI Free Tier
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -62,7 +60,6 @@ def init_db():
     ''')
     conn.commit()
 
-# Helper function safely searches both deep roots and simple directories
 def safe_render(filename):
     possible_paths = [
         f"templates/{filename}",
@@ -141,22 +138,17 @@ def generate_ppt():
         "{\"title\": \"Comprehensive Presentation Title\", \"slides\": [{\"heading\": \"Detailed Slide Heading\", \"bullets\": [\"Extremely descriptive sentence explaining fact 1 with context.\", \"Thoroughly written point 2 expanding on details and definitions.\", \"Detailed academic point 3 providing analysis or data.\"]}]}"
     )
     
-  try:
-        # Forcing Gemini to strictly speak JSON native format
+    try:
         model = genai.GenerativeModel(
             'gemini-1.5-flash',
             generation_config={"response_mime_type": "application/json"}
         )
         response = model.generate_content(f"{ai_system_instruction}\n\nUser prompt: {prompt}")
-        
-        # Clean up any weird wrapping strings if they exist
         text_clean = response.text.strip()
         if text_clean.startswith("```"):
             text_clean = text_clean.strip("`").replace("json", "", 1).strip()
-            
         data = json.loads(text_clean)
     except Exception as e:
-        # Detailed academic safety fallback if API limits are throttled
         data = {
             "title": prompt.title(),
             "slides": [
