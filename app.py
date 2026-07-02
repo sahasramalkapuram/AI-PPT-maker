@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import google.generativeai as genai
 import sqlite3
@@ -60,16 +60,12 @@ def init_db():
     ''')
     conn.commit()
 
-def safe_render(filename):
-    possible_paths = [
-        f"templates/{filename}",
-        f"templates//{filename}",
-        filename
-    ]
+def safe_render(filename, **kwargs):
+    possible_paths = [f"templates/{filename}", f"templates//{filename}", filename]
     for path in possible_paths:
         if os.path.exists(path):
-            return render_template(path)
-    return render_template(f"templates/{filename}")
+            return render_template(path, **kwargs)
+    return render_template(f"templates/{filename}", **kwargs)
 
 @app.route('/')
 def index():
@@ -113,56 +109,77 @@ def dashboard():
     cursor = conn.cursor()
     cursor.execute("SELECT ppt_id, title, prompt, theme, created_at FROM presentations WHERE user_id = ? ORDER BY created_at DESC", (current_user.id,))
     user_ppts = [{ 'id': r[0], 'title': r[1], 'prompt': r[2], 'theme': r[3], 'date': r[4] } for r in cursor.fetchall()]
-    
-    for path in ["templates/dashboard.html", "templates//dashboard.html", "dashboard.html"]:
-        if os.path.exists(path):
-            return render_template(path, ppts=user_ppts)
-    return render_template("templates/dashboard.html", ppts=user_ppts)
+    return safe_render('dashboard.html', ppts=user_ppts)
 
-@app.route('/generate', methods=['POST'])
+# STAGE 1: Gather info and generate the list of Slide Headings (The Outline)
+@app.route('/generate/outline', methods=['POST'])
 @login_required
-def generate_ppt():
+def generate_outline():
     prompt = request.form.get('prompt')
     theme = request.form.get('theme', 'modern')
     
     if not prompt:
         return "Please input a topic description.", 400
         
-    ai_system_instruction = (
-        "You are an expert educational researcher and academic presentation maker. "
-        "Generate an exhaustive, information-heavy presentation layout based on the user's prompt topic. "
-        "Each slide MUST contain substantial information and deeply researched context. "
-        "Do not just provide broad headers. For every single slide, write 3 to 5 detailed, descriptive bullet points "
-        "explaining core definitions, structural mechanisms, factual data, or logical steps related to the slide's heading. "
-        "Your response MUST be entirely valid JSON data matching this schema exactly without markdown wrapping or backticks: "
-        "{\"title\": \"Comprehensive Presentation Title\", \"slides\": [{\"heading\": \"Detailed Slide Heading\", \"bullets\": [\"Extremely descriptive sentence explaining fact 1 with context.\", \"Thoroughly written point 2 expanding on details and definitions.\", \"Detailed academic point 3 providing analysis or data.\"]}]}"
+    outline_instruction = (
+        "You are an academic presentation planner. Analyze the user's prompt topic and plan a comprehensive slide layout. "
+        "Return a valid JSON object containing a 'title' string and an array named 'outline' consisting of 4 to 7 slide heading strings. "
+        "Do not include bullets, markdown wrappers, or backticks. Example structure: "
+        "{\"title\": \"Topic Title\", \"outline\": [\"Slide 1 Heading\", \"Slide 2 Heading\"]}"
     )
     
     try:
-        model = genai.GenerativeModel(
-            'gemini-1.5-flash',
-            generation_config={"response_mime_type": "application/json"}
-        )
-        response = model.generate_content(f"{ai_system_instruction}\n\nUser prompt: {prompt}")
-        text_clean = response.text.strip()
-        if text_clean.startswith("```"):
-            text_clean = text_clean.strip("`").replace("json", "", 1).strip()
-        data = json.loads(text_clean)
+        model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+        response = model.generate_content(f"{outline_instruction}\n\nUser prompt: {prompt}")
+        data = json.loads(response.text.strip())
     except Exception as e:
         data = {
             "title": prompt.title(),
-            "slides": [
-                {"heading": "Core Overview", "bullets": ["Comprehensive conceptual breakdown of your chosen academic prompt.", "In-depth review of historical parameters and structural mechanisms.", "Analyzed data streams explaining foundational topic pillars."]},
-                {"heading": "Detailed Technical Analysis", "bullets": ["Primary architectural framework execution variables.", "Step-by-step logical functions and operational methodology.", "Supporting equations or structural variables detailed thoroughly."]},
-                {"heading": "Academic Summary", "bullets": ["Concluding thesis takeaways and project observations.", "Practical real-world application cases for this system framework.", "Open research problems for student team discussions."]}
-            ]
+            "outline": ["1. Introduction & Background", "2. Core Mechanisms & Definitions", "3. Practical Real-World Applications", "4. Summary Conclusion"]
         }
+        
+    return safe_render('outline.html', title=data.get('title', prompt), headings=data.get('outline', []), original_prompt=prompt, theme=theme)
+
+# STAGE 2: Take approved headings and gather deep information content for each slide
+@app.route('/generate/final', methods=['POST'])
+@login_required
+def generate_final():
+    prompt = request.form.get('original_prompt')
+    title = request.form.get('title')
+    theme = request.form.get('theme')
+    headings = request.form.getlist('headings')
+    
+    slides_data = []
+    
+    for idx, heading in enumerate(headings):
+        content_instruction = (
+            f"You are an expert academic researcher. For the presentation titled '{title}' on the topic '{prompt}', "
+            f"provide a deeply detailed breakdown for Slide #{idx+1} titled '{heading}'. "
+            "Write 3 to 5 highly comprehensive, research-heavy, informational bullet points. "
+            "Explain exact technical facts, detailed concepts, mechanics, or historical data. Avoid short phrases. "
+            "Your response MUST be valid JSON matching this schema: "
+            "{\"bullets\": [\"Detailed informative sentence 1.\", \"Detailed informative sentence 2.\"]}"
+        )
+        
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+            response = model.generate_content(content_instruction)
+            slide_json = json.loads(response.text.strip())
+            bullets = slide_json.get('bullets', ["Deep research text expansion point placeholder."])
+        except Exception:
+            bullets = [
+                f"Detailed foundational analysis regarding {heading}.",
+                "Extensive supporting metric context and operational breakdown.",
+                "Core practical summary implementations and case reflections."
+            ]
+            
+        slides_data.append({"heading": heading, "bullets": bullets})
 
     ppt_id = str(uuid.uuid4())[:8]
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO presentations (ppt_id, user_id, prompt, title, content_json, theme, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                   (ppt_id, current_user.id, prompt, data.get('title', prompt), json.dumps(data.get('slides', [])), theme, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                   (ppt_id, current_user.id, prompt, title, json.dumps(slides_data), theme, datetime.now().strftime("%Y-%m-%d %H:%M")))
     conn.commit()
     
     return redirect(url_for('view_presentation', ppt_id=ppt_id))
@@ -176,11 +193,7 @@ def view_presentation(ppt_id):
     row = cursor.fetchone()
     if not row:
         return "Presentation structure not found.", 404
-        
-    for path in ["templates/view_ppt.html", "templates//view_ppt.html", "view_ppt.html"]:
-        if os.path.exists(path):
-            return render_template(path, title=row[0], slides=json.loads(row[1]), theme=row[2])
-    return render_template("templates/view_ppt.html", title=row[0], slides=json.loads(row[1]), theme=row[2])
+    return safe_render('view_ppt.html', title=row[0], slides=json.loads(row[1]), theme=row[2])
 
 init_db()
 if __name__ == '__main__':
