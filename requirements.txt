@@ -1,0 +1,6 @@
+flask
+flask-login
+authlib
+requests
+gunicorn
+google-generativeai

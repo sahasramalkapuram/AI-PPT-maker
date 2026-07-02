@@ -1,0 +1,160 @@
+from flask import Flask, render_template, request, redirect, url_for, session
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+import google.generativeai as genai
+import sqlite3
+import uuid
+import os
+import json
+from datetime import datetime
+
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', '7ca46c82d8a64db9bd4e23cfb8a0df12')
+
+# Configure Gemini AI Free Tier
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login_page'
+
+DB_PATH = ':memory:'
+_db_conn = None
+
+def get_db():
+    global _db_conn
+    if _db_conn is None:
+        _db_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    return _db_conn
+
+class User(UserMixin):
+    def __init__(self, id, email, name):
+        self.id = id
+        self.email = email
+        self.name = name
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, email, name FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    if row:
+        return User(row[0], row[1], row[2])
+    return None
+
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT)')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS presentations (
+            ppt_id TEXT PRIMARY KEY,
+            user_id TEXT,
+            prompt TEXT,
+            title TEXT,
+            content_json TEXT,
+            theme TEXT,
+            created_at TEXT
+        )
+    ''')
+    conn.commit()
+
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login_page'))
+
+@app.route('/login')
+def login_page():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('login.html')
+
+@app.route('/login/email', methods=['POST'])
+def login_email():
+    email = request.form.get('email').strip().lower()
+    user_id = str(uuid.uuid4())[:8]
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM users WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    if row:
+        user_id, name = row[0], row[1]
+    else:
+        name = email.split('@')[0]
+        cursor.execute("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", (user_id, email, name))
+        conn.commit()
+    login_user(User(user_id, email, name))
+    return redirect(url_for('dashboard'))
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login_page'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT ppt_id, title, prompt, theme, created_at FROM presentations WHERE user_id = ? ORDER BY created_at DESC", (current_user.id,))
+    user_ppts = [{ 'id': r[0], 'title': r[1], 'prompt': r[2], 'theme': r[3], 'date': r[4] } for r in cursor.fetchall()]
+    return render_template('dashboard.html', ppts=user_ppts)
+
+@app.route('/generate', methods=['POST'])
+@login_required
+def generate_ppt():
+    prompt = request.form.get('prompt')
+    theme = request.form.get('theme', 'modern')
+    
+    if not prompt:
+        return "Please input a topic description.", 400
+        
+    ai_system_instruction = (
+        "You are an expert presentation maker. Generate an educational presentation layout based on the prompt. "
+        "Your response MUST be entirely valid JSON data containing a dictionary with a title and an array of slides. Do not add markdown wrapping or backticks. "
+        "Format example: {\"title\": \"Main Topic Title\", \"slides\": [{\"heading\": \"Slide Title\", \"bullets\": [\"Point 1\", \"Point 2\"]}]}"
+    )
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(f"{ai_system_instruction}\n\nUser prompt: {prompt}")
+        text_clean = response.text.strip('`').replace('json\n', '').strip()
+        data = json.loads(text_clean)
+    except Exception as e:
+        data = {
+            "title": prompt.title(),
+            "slides": [
+                {"heading": "Introduction", "bullets": ["Overview of the chosen academic topic structure.", "Key framework principles."]},
+                {"heading": "Core Concepts", "bullets": ["Primary technical execution point breakdown.", "Supporting data variables details."]},
+                {"heading": "Conclusion", "bullets": ["Concluding project thoughts and summary overview."]}
+            ]
+        }
+
+    ppt_id = str(uuid.uuid4())[:8]
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO presentations (ppt_id, user_id, prompt, title, content_json, theme, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                   (ppt_id, current_user.id, prompt, data.get('title', prompt), json.dumps(data.get('slides', [])), theme, datetime.now().strftime("%Y-%m-%d %H:%M")))
+    conn.commit()
+    
+    return redirect(url_for('view_presentation', ppt_id=ppt_id))
+
+@app.route('/presentation/<ppt_id>')
+@login_required
+def view_presentation(ppt_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT title, content_json, theme FROM presentations WHERE ppt_id = ? AND user_id = ?", (ppt_id, current_user.id))
+    row = cursor.fetchone()
+    if not row:
+        return "Presentation structure not found.", 404
+    return render_template('view_ppt.html', title=row[0], slides=json.loads(row[1]), theme=row[2])
+
+init_db()
+if __name__ == '__main__':
+    app.run(debug=True)
