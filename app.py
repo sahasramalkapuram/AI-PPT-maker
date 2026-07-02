@@ -132,7 +132,7 @@ def generate_outline():
     
     try:
         model = genai.GenerativeModel(
-            'gemini-1.5-flash',
+            'gemini-2.5-flash',
             generation_config={"response_mime_type": "application/json"}
         )
         response = model.generate_content(f"{ai_heavy_instruction}\n\nUser prompt: {prompt}")
