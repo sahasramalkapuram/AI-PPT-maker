@@ -66,6 +66,9 @@ def generate_outline():
         # Fallback system tracker to catch inner crashes safely
         app.logger.error(f"Execution Failure under generation step: {str(e)}")
         return f"Internal Processing Error: {str(e)}", 500
-
+@app.route('/')
+def home():
+    # Automatically forward root visitors straight to the dashboard route
+    return redirect(url_for('dashboard'))
 if __name__ == '__main__':
     app.run(debug=True)
