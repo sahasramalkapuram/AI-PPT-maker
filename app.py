@@ -141,15 +141,8 @@ def generate_outline():
             text_clean = text_clean.strip("`").replace("json", "", 1).strip()
         data = json.loads(text_clean)
     except Exception as e:
-        # Structured informational failback data so it always looks fantastic
-        data = {
-            "title": prompt.title(),
-            "slides": [
-                {"heading": "Foundational Overview", "bullets": [f"Comprehensive conceptual structural analysis regarding {prompt} mechanics.", "In-depth review of historical parameters and structural baseline variables.", "Analyzed data streams explaining core framework implementation models."]},
-                {"heading": "Technical Mechanics Breakdown", "bullets": ["Primary architectural framework execution steps and functions.", "Step-by-step logical operations and detailed systemic methodology configurations.", "Supporting research context and operational parameters detailed thoroughly."]},
-                {"heading": "Real-World Academic Analysis", "bullets": ["Concluding project research findings and core situational performance metrics.", "Practical field deployment scenarios and implementation adjustments.", "Open academic research problems for interactive team debate studies."]}
-            ]
-        }
+        # Instead of hiding the error, we force the website to show exactly what went wrong!
+        return f"<h3>AI Generation Failed! Real Error Message: {str(e)}</h3><p>Please check your GEMINI_API_KEY inside Render Environment settings.</p>", 500
         
     # We save the generated data temporarily into the user's session cache memory block
     session['temp_ppt_data'] = data
