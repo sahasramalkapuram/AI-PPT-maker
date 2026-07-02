@@ -22,6 +22,7 @@
 
             <div class="space-y-6">
                 {% for slide in slides %}
+                 {% set slide_index = loop.index0 %}
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
                     <div class="flex items-center space-x-3 border-b border-slate-800 pb-3">
                         <span class="text-xs font-black bg-violet-600/20 text-violet-400 border border-violet-500/20 px-2.5 py-1 rounded-md">Slide {{ loop.index }}</span>
@@ -37,7 +38,7 @@
                         {% for bullet in slide.bullets %}
                         <div class="flex items-start space-x-2">
                             <span class="text-violet-500 mt-2.5 text-xs">•</span>
-                            <textarea name="bullets_slide_{{ loop.parent.index0 }}" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:border-slate-700 outline-none font-medium leading-relaxed">{{ bullet }}</textarea>
+                            <textarea name="bullets_slide_{{ loop.index0 }}" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:border-slate-700 outline-none font-medium leading-relaxed">{{ bullet }}</textarea>
                         </div>
                         {% endfor %}
                     </div>
