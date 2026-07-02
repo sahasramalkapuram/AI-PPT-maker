@@ -61,7 +61,7 @@
                         <div class="space-y-1.5">
                             <span class="block text-[10px] font-bold uppercase tracking-wider opacity-50">Visual Asset Anchor</span>
                             <div class="overflow-hidden rounded-xl border bg-slate-900 aspect-video relative flex items-center justify-center border-slate-800">
-                        <img src="https://images.unsplash.com/featured/500x280/?{{ slide.image_query | urlencode }}" alt="{{ slide.image_query }}" class="w-full h-full object-cover absolute inset-0 opacity-70" />
+                       <img src="https://source.unsplash.com/random/500x280/?{{ slide.image_query | replace(' ', ',') }}" alt="{{ slide.image_query }}" class="w-full h-full object-cover absolute inset-0 opacity-70" />
                                 <div class="absolute bottom-2 left-2 right-2 bg-slate-950/90 text-[10px] text-emerald-400 px-2 py-1 rounded-md border border-emerald-900/30 font-mono truncate">
                                     Query: "{{ slide.image_query }}"
                                 </div>
