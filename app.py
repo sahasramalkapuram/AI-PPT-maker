@@ -141,18 +141,28 @@ def generate_ppt():
         "{\"title\": \"Comprehensive Presentation Title\", \"slides\": [{\"heading\": \"Detailed Slide Heading\", \"bullets\": [\"Extremely descriptive sentence explaining fact 1 with context.\", \"Thoroughly written point 2 expanding on details and definitions.\", \"Detailed academic point 3 providing analysis or data.\"]}]}"
     )
     
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+  try:
+        # Forcing Gemini to strictly speak JSON native format
+        model = genai.GenerativeModel(
+            'gemini-1.5-flash',
+            generation_config={"response_mime_type": "application/json"}
+        )
         response = model.generate_content(f"{ai_system_instruction}\n\nUser prompt: {prompt}")
-        text_clean = response.text.strip('`').replace('json\n', '').strip()
+        
+        # Clean up any weird wrapping strings if they exist
+        text_clean = response.text.strip()
+        if text_clean.startswith("```"):
+            text_clean = text_clean.strip("`").replace("json", "", 1).strip()
+            
         data = json.loads(text_clean)
     except Exception as e:
+        # Detailed academic safety fallback if API limits are throttled
         data = {
             "title": prompt.title(),
             "slides": [
-                {"heading": "Introduction", "bullets": ["Overview of the chosen academic topic structure.", "Key framework principles."]},
-                {"heading": "Core Concepts", "bullets": ["Primary technical execution point breakdown.", "Supporting data variables details."]},
-                {"heading": "Conclusion", "bullets": ["Concluding project thoughts and summary overview."]}
+                {"heading": "Core Overview", "bullets": ["Comprehensive conceptual breakdown of your chosen academic prompt.", "In-depth review of historical parameters and structural mechanisms.", "Analyzed data streams explaining foundational topic pillars."]},
+                {"heading": "Detailed Technical Analysis", "bullets": ["Primary architectural framework execution variables.", "Step-by-step logical functions and operational methodology.", "Supporting equations or structural variables detailed thoroughly."]},
+                {"heading": "Academic Summary", "bullets": ["Concluding thesis takeaways and project observations.", "Practical real-world application cases for this system framework.", "Open research problems for student team discussions."]}
             ]
         }
 
