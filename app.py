@@ -32,13 +32,13 @@ def generate_ai_slides(prompt, count, assets_config):
     return slides
 
 @app.route('/dashboard')
-@login_required
+#@login_required
 def dashboard():
     # Renders the beautiful custom control panel
     return render_template('dashboard.html')
 
 @app.route('/generate/outline', methods=['POST'])
-@login_required  # Protects route safely within user session context
+
 def generate_outline():
     try:
         # 1. Safely extract values from form inputs
