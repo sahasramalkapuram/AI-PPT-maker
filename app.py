@@ -124,21 +124,30 @@ def generate_ppt():
         "{\"title\": \"Comprehensive Presentation Title\", \"slides\": [{\"heading\": \"Detailed Slide Heading\", \"bullets\": [\"Extremely descriptive sentence explaining fact 1 with context.\", \"Thoroughly written point 2 expanding on details and definitions.\", \"Detailed academic point 3 providing analysis or data.\"]}]}"
     )
     
-    try:
+  try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(f"{ai_system_instruction}\n\nUser prompt: {prompt}")
-        text_clean = response.text.strip('`').replace('json\n', '').strip()
-        data = json.loads(text_clean)
+        
+        # Robust scrubbing to strip any potential markdown wraps completely
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            # Splits away lines like ```json or ``` and extracts the core text inside
+            lines = raw_text.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            raw_text = "\n".join(lines).strip()
+            
+        data = json.loads(raw_text)
     except Exception as e:
+        # Fallback dictionary if an absolute structural breaking error happens
         data = {
             "title": prompt.title(),
             "slides": [
-                {"heading": "Introduction", "bullets": ["Overview of the chosen academic topic structure.", "Key framework principles."]},
-                {"heading": "Core Concepts", "bullets": ["Primary technical execution point breakdown.", "Supporting data variables details."]},
-                {"heading": "Conclusion", "bullets": ["Concluding project thoughts and summary overview."]}
+                {"heading": "AI Engine Parsing Notice", "bullets": ["The AI generated content but the system hit an internal formatting layout mismatch.", "Please try resubmitting your prompt request to re-trigger compilation."]}
             ]
         }
-
     ppt_id = str(uuid.uuid4())[:8]
     conn = get_db()
     cursor = conn.cursor()
