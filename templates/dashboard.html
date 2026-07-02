@@ -1,53 +1,82 @@
-<form action="/generate/outline" method="POST" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-    <div>
-        <label class="block text-xs font-bold text-violet-400 uppercase tracking-widest mb-2">Topic or Presentation Outline Prompt</label>
-        <textarea name="prompt" rows="3" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 font-medium transition" placeholder="e.g., An elegant outline detailing the Photoelectric Effect theory..."></textarea>
-    </div>
+<div class="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+  <div class="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 space-y-6">
     
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Slide Visual Aesthetic</label>
-            <select name="theme" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm">
-                <option value="modern">Modern Obsidian (Deep Dark)</option>
-                <option value="academic">Academic Clean (Ivory Light)</option>
-                <option value="cyberpunk">CyberNeon Grid (Vibrant Contrast)</option>
-                <option value="emerald">Deep Forest (Emerald & Gold)</option>
-                <option value="sunset">Warm Terracotta (Luxury Pastel)</option>
-                <option value="ocean">Oceanic Minimalist (Navy Blue & Teal)</option>
-            </select>
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">No. of Slides</label>
-            <select name="slide_count" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm">
-                <option value="3">3 Slides (Quick Deck)</option>
-                <option value="5" selected>5 Slides (Standard)</option>
-                <option value="7">7 Slides (Detailed Report)</option>
-                <option value="10">10 Slides (Exhaustive Thesis)</option>
-            </select>
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Content Length</label>
-            <select name="content_length" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm">
-                <option value="short and punchy bullet notes">Short & Punchy Notes</option>
-                <option value="highly detailed informative sentences" selected>Detailed Paragraph Bullets</option>
-                <option value="exhaustive academic research analysis text strings">Exhaustive Scientific Text</option>
-            </select>
-        </div>
-
-        <div>
-            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Slide Visual Assets</label>
-            <select name="include_visuals" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm">
-                <option value="none" selected>Text Presentation Only</option>
-                <option value="images">Auto-Embed Unsplash Images</option>
-                <option value="charts">Auto-Embed Data Graphs & Charts</option>
-                <option value="both">Embed Both Images & Charts</option>
-            </select>
-        </div>
+    <!-- Header Section -->
+    <div class="border-b border-slate-800 pb-4">
+      <h1 class="text-2xl font-bold bg-gradient-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent">
+        AI Presentation Workspace
+      </h1>
+      <p class="text-sm text-slate-400 mt-1">Configure your slide generation parameters below.</p>
     </div>
-    
-    <div class="flex justify-end pt-2">
-        <button type="submit" class="bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl hover:from-violet-500 hover:to-indigo-500 shadow-xl shadow-violet-600/20 transition cursor-pointer">🪄 Research & Generate</button>
-    </div>
-</form>
+
+    <form action="/generate/outline" method="POST" class="space-y-6">
+      
+      <!-- Topic Input -->
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Topic or Presentation Outline Prompt</label>
+        <textarea 
+          name="prompt" 
+          rows="3" 
+          placeholder="e.g., The implications of a parallel world theory in modern quantum mechanics..."
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition resize-none"
+        ></textarea>
+      </div>
+
+      <!-- Settings Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Aesthetic Select -->
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Slide Visual Aesthetic</label>
+          <select name="aesthetic" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-violet-500 transition appearance-none">
+            <option value="warm-terracotta">Warm Terracotta (Luxury Pastel)</option>
+            <option value="cyberpunk">Neon Cyberpunk (Dark Tech)</option>
+            <option value="minimal-scandi">Minimalist Scandinavian (Clean & Light)</option>
+          </select>
+        </div>
+
+        <!-- Slide Count Select -->
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">No. of Slides</label>
+          <select name="slide_count" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-violet-500 transition">
+            <option value="5">5 Slides (Quick Pitch)</option>
+            <option value="7" selected>7 Slides (Detailed Report)</option>
+            <option value="10">10 Slides (Deep Dive)</option>
+          </select>
+        </div>
+
+        <!-- Content Length Select -->
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Content Length</label>
+          <select name="content_length" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-violet-500 transition">
+            <option value="bullets">Concise Bullet Points</option>
+            <option value="detailed" selected>Detailed Paragraph Bullets</option>
+          </select>
+        </div>
+
+        <!-- Visual Assets Select -->
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Slide Visual Assets</label>
+          <select name="assets" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-violet-500 transition">
+            <option value="both">Embed Both Images & Charts</option>
+            <option value="images">Images Only</option>
+            <option value="charts">Charts Only</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Submit Action Button -->
+      <div class="pt-4">
+        <button 
+          type="submit" 
+          class="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium py-3.5 px-4 rounded-xl shadow-lg shadow-indigo-950/50 transition duration-200 transform active:scale-[0.99] flex items-center justify-center space-x-2"
+        >
+          <span>Research & Generate Deck</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
