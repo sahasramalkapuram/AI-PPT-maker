@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Slide Layout Outline</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-radial from-slate-900 via-indigo-950 to-slate-950 min-h-screen flex items-center justify-center p-6 text-white">
+    <div class="bg-slate-900 border border-white/10 p-8 rounded-3xl shadow-2xl max-w-xl w-full space-y-6">
+        <div>
+            <span class="text-[10px] uppercase font-bold tracking-widest text-violet-400 px-2 py-1 bg-violet-500/10 rounded-md border border-violet-500/20">Stage 2: Outline Inspection</span>
+            <h2 class="text-3xl font-black mt-3 text-white tracking-tight">Slide Structure Outline</h2>
+            <p class="text-slate-400 text-xs">AI gathered the topic framework. Review or adjust the heading titles before researching content variables.</p>
+        </div>
+
+        <!-- Outline Adjustment Wizard Form Panel -->
+        <form action="/generate/final" method="POST" class="space-y-4">
+            <input type="hidden" name="original_prompt" value="{{ original_prompt }}">
+            <input type="hidden" name="theme" value="{{ theme }}">
+            
+            <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Presentation Title</label>
+                <input type="text" name="title" value="{{ title }}" class="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 font-bold">
+            </div>
+
+            <div class="space-y-3 pt-2">
+                <label class="block text-xs font-bold text-violet-400 uppercase tracking-widest">Planned Slide Flow Sequence</label>
+                {% for heading in headings %}
+                <div class="flex items-center space-x-3 bg-slate-950/60 border border-white/5 p-3 rounded-xl">
+                    <span class="text-xs font-bold text-violet-500">Slide {{ loop.index }}:</span>
+                    <input type="text" name="headings" value="{{ heading }}" class="flex-grow bg-transparent border-none text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-violet-500/30 px-1 rounded">
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="pt-4 flex items-center justify-between space-x-4">
+                <a href="/dashboard" class="text-xs text-slate-400 hover:text-white font-medium">&larr; Start Over</a>
+                <button type="submit" class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold px-6 py-3 rounded-xl shadow-xl shadow-violet-600/20 transition cursor-pointer">✨ Confirm & Research Information →</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
