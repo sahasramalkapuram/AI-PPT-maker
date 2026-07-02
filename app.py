@@ -1,44 +1,76 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for
 
-# Initialize Flask and explicitly define the template directory folder
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-12345")
 
 def generate_ai_slides(prompt, count, assets_config):
     """
-    Generates structured slide content matching the configuration parameters.
+    Simulates dynamic AI slide generation with smart asset placement,
+    varied content lengths, and high-fidelity topic variations.
     """
     slides = []
+    
+    # Topic-specific contextual anchors for realistic, dynamic image lookups
+    sample_contexts = [
+        {"aspect": "Conceptual Foundations", "img_term": "macro photography crisp realism physics", "has_chart": False},
+        {"aspect": "Statistical Metrics & Data", "img_term": "clean data office workspace 8k", "has_chart": True},
+        {"aspect": "Practical Core Application", "img_term": "realistic industrial engineering machinery", "has_chart": False},
+        {"aspect": "Future Strategic Horizon", "img_term": "high resolution laboratory research space", "has_chart": True},
+        {"aspect": "Comparative Case Evaluation", "img_term": "detailed architecture building daylight", "has_chart": False},
+    ]
+    
     for i in range(int(count)):
+        ctx = sample_contexts[i % len(sample_contexts)]
+        
+        # Decide if this slide needs a chart based on context and configuration settings
+        show_chart = ctx["has_chart"] if assets_config in ['both', 'charts'] else False
+        show_image = True if assets_config in ['both', 'images'] else False
+        
+        # Varying content styles: some slides use structured blocks, others use clean text narratives
+        use_paragraph = (i % 2 == 1) 
+        
         slide_data = {
-            "title": f"Slide {i+1}: Core Analysis of {prompt.strip() or 'Your Topic'}",
+            "title": f"Slide {i+1}: {ctx['aspect']} of {prompt.strip()}",
+            "use_paragraph": use_paragraph,
+            "paragraph_text": f"This layer outlines the definitive structural execution vectors underlying {prompt}. It represents a critical milestone in performance observation, synthesizing modern technical protocols with validated operational benchmarks established across empirical case studies.",
             "bullets": [
-                f"Primary analytical dimension tracking framework requirements for slide layout configuration {i+1}.",
-                "Secondary logical execution parameter parsing the contextual data streams cleanly.",
-                "Granular takeaway summarizing the operational performance and impact metrics."
+                f"Core execution protocol mapping key parameters for variable segment {i+1}.",
+                "Resource allocation threshold calculated against real-time throughput metrics.",
+                "Primary deployment optimization layer ensuring reliable output scaling."
             ],
-            "image_query": f"technology abstract orientation {i}" if assets_config in ['both', 'images'] else None,
-            "chart_data": [12, 28, 40, i * 12 + 20] if assets_config in ['both', 'charts'] else None
+            # Uses a dynamic search term directly inside Unsplash's source engine for realism
+            "image_query": f"https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?auto=format&fit=crop&w=600&q=80" if show_image and i==0 else None,
+            "chart_data": [25, 45, i * 10 + 30, 85] if show_chart else None,
+            "img_keyword": f"{prompt.strip()} {ctx['img_term']}" if show_image else None
         }
+        
+        # Inject realistic image variations using diverse high-quality stock indexes
+        if show_image:
+            img_ids = [
+                "photo-1451187580459-43490279c0fa", # Quantum Tech
+                "photo-1551288049-bebda4e38f71", # Clean Analytics chart screen
+                "photo-1486406146926-c627a92ad1ab", # High-rise architecture
+                "photo-1507413245164-6160d8298b31", # High-end Lab environment
+                "photo-1461749280684-dccba630e2f6"  # Precision tech workspace
+            ]
+            slide_data["image_url"] = f"https://images.unsplash.com/{img_ids[i % len(img_ids)]}?auto=format&fit=crop&w=600&q=80"
+            
         slides.append(slide_data)
+        
     return slides
 
-# 1. Main Home Route Redirect Fix
 @app.route('/')
 def home():
     return redirect(url_for('dashboard'))
 
-# 2. Workspace Control Dashboard (Bypasses all broken login context processors)
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
 
-# 3. Slide Generation Engine Route
 @app.route('/generate/outline', methods=['POST'])
 def generate_outline():
     try:
-        # Safely extract form values from the dashboard frontend UI
         prompt = request.form.get('prompt', '').strip()
         aesthetic = request.form.get('aesthetic', 'cyberpunk')
         slide_count = request.form.get('slide_count', '7')
@@ -47,20 +79,16 @@ def generate_outline():
         if not prompt:
             return redirect(url_for('dashboard'))
             
-        # Build the mock data deck
         generated_deck = generate_ai_slides(prompt, slide_count, assets)
         
-        # Render the preview outline template
         return render_template(
             'outline.html', 
             slides=generated_deck, 
             aesthetic=aesthetic,
             prompt=prompt
         )
-        
     except Exception as e:
         return f"Internal Processing Error: {str(e)}", 500
 
-# Server starter execution hook (Must be at the absolute bottom of the file)
 if __name__ == '__main__':
     app.run(debug=True)
