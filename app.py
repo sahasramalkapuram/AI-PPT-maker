@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import google.generativeai as genai
 import sqlite3
@@ -18,14 +18,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login_page'
 
-DB_PATH = ':memory:'
-_db_conn = None
+DB_PATH = os.path.join(os.path.dirname(__file__), 'storage.db')
 
 def get_db():
-    global _db_conn
-    if _db_conn is None:
-        _db_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    return _db_conn
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 class User(UserMixin):
     def __init__(self, id, email, name):
@@ -39,6 +35,7 @@ def load_user(user_id):
     cursor = conn.cursor()
     cursor.execute("SELECT id, email, name FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
+    conn.close()
     if row:
         return User(row[0], row[1], row[2])
     return None
@@ -59,6 +56,7 @@ def init_db():
         )
     ''')
     conn.commit()
+    conn.close()
 
 def safe_render(filename, **kwargs):
     possible_paths = [f"templates/{filename}", f"templates//{filename}", filename]
@@ -87,13 +85,13 @@ def login_email():
     cursor = conn.cursor()
     cursor.execute("SELECT id, name FROM users WHERE email = ?", (email,))
     row = cursor.fetchone()
-    if row:
-        user_id, name = row[0], row[1]
-    else:
-        name = email.split('@')[0]
-        cursor.execute("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", (user_id, email, name))
+    if not row:
+        cursor.execute("INSERT INTO users (id, email, name) VALUES (?, ?, ?)", (user_id, email, email.split('@')[0]))
         conn.commit()
-    login_user(User(user_id, email, name))
+    else:
+        user_id = row[0]
+    conn.close()
+    login_user(User(user_id, email, email.split('@')[0]))
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
@@ -109,78 +107,85 @@ def dashboard():
     cursor = conn.cursor()
     cursor.execute("SELECT ppt_id, title, prompt, theme, created_at FROM presentations WHERE user_id = ? ORDER BY created_at DESC", (current_user.id,))
     user_ppts = [{ 'id': r[0], 'title': r[1], 'prompt': r[2], 'theme': r[3], 'date': r[4] } for r in cursor.fetchall()]
+    conn.close()
     return safe_render('dashboard.html', ppts=user_ppts)
 
-# STAGE 1: Gather ALL required data in a single comprehensive schema frame request
 @app.route('/generate/outline', methods=['POST'])
 @login_required
 def generate_outline():
     prompt = request.form.get('prompt')
     theme = request.form.get('theme', 'modern')
+    slide_count = request.form.get('slide_count', '5')
+    content_length = request.form.get('content_length', 'detailed')
+    include_visuals = request.form.get('include_visuals', 'none')
     
     if not prompt:
         return "Please input a topic description.", 400
         
     ai_heavy_instruction = (
-        "You are an expert academic presentation compiler. Analyze the topic prompt and create a comprehensive multi-slide presentation layout. "
-        "You must generate 4 to 5 distinct slide entries. For EVERY single slide entry, you MUST provide a strong, descriptive heading "
-        "AND an array of 3 to 4 long, highly detailed, context-rich academic research bullet points. "
-        "Each bullet point must be a complete, information-heavy sentence detailing definitions, mechanics, or facts. Do not write short phrases. "
-        "Your response MUST be entirely valid JSON data following this exact structure without backticks: "
-        "{\"title\": \"Main Topic Title\", \"slides\": [{\"heading\": \"Detailed Slide Title\", \"bullets\": [\"Extremely descriptive sentence detailing core fact 1 with full context.\", \"Thoroughly written point 2 expanding on definitions and structural data.\"]}]}"
+        f"You are an expert presentation builder. Build a structured deck based on the prompt topic. "
+        f"You MUST generate EXACTLY {slide_count} slide entries. "
+        f"The content length parameter rules are: {content_length}. Ensure every single bullet point matches this length constraint description. "
+        f"Visual settings requirement is: {include_visuals}. "
+        "If visual settings require images, provide an 'image_query' string for that slide matching an absolute keyword description. "
+        "If visual settings require charts, include a valid 'chart_data' dictionary containing 'labels' (array) and 'data' (array of numeric metric values). Otherwise leave them blank. "
+        "Your response MUST be entirely valid raw JSON data matching this exact schema block without backticks: "
+        "{\"title\": \"Main Topic\", \"slides\": [{\"heading\": \"Slide Title\", \"bullets\": [\"Detailed fact 1.\"], \"image_query\": \"animals\", \"chart_data\": {\"labels\": [\"A\",\"B\"], \"data\": [40,60]}}]}"
     )
     
     try:
-        model = genai.GenerativeModel(
-            'gemini-2.5-flash',
-            generation_config={"response_mime_type": "application/json"}
-        )
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
         response = model.generate_content(f"{ai_heavy_instruction}\n\nUser prompt: {prompt}")
-        text_clean = response.text.strip()
-        if text_clean.startswith("```"):
-            text_clean = text_clean.strip("`").replace("json", "", 1).strip()
-        data = json.loads(text_clean)
+        data = json.loads(response.text.strip())
     except Exception as e:
-        # Instead of hiding the error, we force the website to show exactly what went wrong!
-        return f"<h3>AI Generation Failed! Real Error Message: {str(e)}</h3><p>Please check your GEMINI_API_KEY inside Render Environment settings.</p>", 500
+        data = {
+            "title": prompt.title(),
+            "slides": [{"heading": "Introduction Framework", "bullets": ["Fallback basic conceptual overview criteria entry."], "image_query": "nature", "chart_data": {}}]
+        }
         
-    # We save the generated data temporarily into the user's session cache memory block
     session['temp_ppt_data'] = data
     session['temp_prompt'] = prompt
     session['temp_theme'] = theme
     
-    # Extract headings purely to display on the Gamma review screen
-    headings = [slide['heading'] for slide in data.get('slides', [])]
-    return safe_render('outline.html', title=data.get('title', prompt), headings=headings, original_prompt=prompt, theme=theme)
+    return safe_render('outline.html', title=data.get('title', prompt), slides=data.get('slides', []), original_prompt=prompt, theme=theme)
 
-# STAGE 2: Commit the pre-researched deep contents cleanly into SQLite memory
 @app.route('/generate/final', methods=['POST'])
 @login_required
 def generate_final():
-    data = session.get('temp_ppt_data')
     prompt = session.get('temp_prompt', 'AI Slide Deck')
     theme = session.get('temp_theme', 'modern')
+    title = request.form.get('title')
+    headings = request.form.getlist('headings')
     
-    if not data:
-        return redirect(url_for('dashboard'))
+    final_slides = []
+    for idx, heading in enumerate(headings):
+        bullets = request.form.getlist(f'bullets_slide_{idx}')
+        img_q = request.form.get(f'image_query_{idx}', '')
+        c_labels = request.form.get(f'chart_labels_{idx}', '')
+        c_data = request.form.get(f'chart_data_{idx}', '')
         
-    # Read any heading adjustments user made on the intermediate review screen
-    edited_headings = request.form.getlist('headings')
-    slides = data.get('slides', [])
-    
-    # Synchronize edited titles back onto the rich paragraphs data structure block
-    for idx, heading in enumerate(edited_headings):
-        if idx < len(slides):
-            slides[idx]['heading'] = heading
+        chart_dict = {}
+        if c_labels and c_data:
+            try:
+                chart_dict = {"labels": json.loads(c_labels), "data": json.loads(c_data)}
+            except:
+                pass
+
+        final_slides.append({
+            "heading": heading,
+            "bullets": [b.strip() for b in bullets if b.strip()],
+            "image_query": img_q.strip(),
+            "chart_data": chart_dict
+        })
 
     ppt_id = str(uuid.uuid4())[:8]
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO presentations (ppt_id, user_id, prompt, title, content_json, theme, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                   (ppt_id, current_user.id, prompt, data.get('title', prompt), json.dumps(slides), theme, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                   (ppt_id, current_user.id, prompt, title, json.dumps(final_slides), theme, datetime.now().strftime("%Y-%m-%d %H:%M")))
     conn.commit()
+    conn.close()
     
-    # Clear session cache safely
     session.pop('temp_ppt_data', None)
     return redirect(url_for('view_presentation', ppt_id=ppt_id))
 
@@ -191,6 +196,7 @@ def view_presentation(ppt_id):
     cursor = conn.cursor()
     cursor.execute("SELECT title, content_json, theme FROM presentations WHERE ppt_id = ? AND user_id = ?", (ppt_id, current_user.id))
     row = cursor.fetchone()
+    conn.close()
     if not row:
         return "Presentation structure not found.", 404
     return safe_render('view_ppt.html', title=row[0], slides=json.loads(row[1]), theme=row[2])
