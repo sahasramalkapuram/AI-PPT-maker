@@ -111,7 +111,7 @@ def dashboard():
     user_ppts = [{ 'id': r[0], 'title': r[1], 'prompt': r[2], 'theme': r[3], 'date': r[4] } for r in cursor.fetchall()]
     return safe_render('dashboard.html', ppts=user_ppts)
 
-# STAGE 1: Gather info and generate the list of Slide Headings (The Outline)
+# STAGE 1: Generate the Slides Outline Layout Structure
 @app.route('/generate/outline', methods=['POST'])
 @login_required
 def generate_outline():
@@ -123,8 +123,8 @@ def generate_outline():
         
     outline_instruction = (
         "You are an academic presentation planner. Analyze the user's prompt topic and plan a comprehensive slide layout. "
-        "Return a valid JSON object containing a 'title' string and an array named 'outline' consisting of 4 to 7 slide heading strings. "
-        "Do not include bullets, markdown wrappers, or backticks. Example structure: "
+        "Return a valid JSON object containing a 'title' string and an array named 'outline' consisting of 4 to 6 slide heading strings. "
+        "Do not include markdown wrappers or backticks. Example structure: "
         "{\"title\": \"Topic Title\", \"outline\": [\"Slide 1 Heading\", \"Slide 2 Heading\"]}"
     )
     
@@ -135,12 +135,12 @@ def generate_outline():
     except Exception as e:
         data = {
             "title": prompt.title(),
-            "outline": ["1. Introduction & Background", "2. Core Mechanisms & Definitions", "3. Practical Real-World Applications", "4. Summary Conclusion"]
+            "outline": ["1. Introduction & Background", "2. Core Mechanisms & Definitions", "3. Practical Implementations", "4. Summary Conclusion"]
         }
         
     return safe_render('outline.html', title=data.get('title', prompt), headings=data.get('outline', []), original_prompt=prompt, theme=theme)
 
-# STAGE 2: Take approved headings and gather deep information content for each slide
+# STAGE 2: Deeply research and pull heavy information for each individual heading
 @app.route('/generate/final', methods=['POST'])
 @login_required
 def generate_final():
@@ -150,30 +150,39 @@ def generate_final():
     headings = request.form.getlist('headings')
     
     slides_data = []
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
-    for idx, heading in enumerate(headings):
+    for heading in headings:
+        # We drop JSON format constraints here to let Gemini write rich, full text lengths easily
         content_instruction = (
-            f"You are an expert academic researcher. For the presentation titled '{title}' on the topic '{prompt}', "
-            f"provide a deeply detailed breakdown for Slide #{idx+1} titled '{heading}'. "
-            "Write 3 to 5 highly comprehensive, research-heavy, informational bullet points. "
-            "Explain exact technical facts, detailed concepts, mechanics, or historical data. Avoid short phrases. "
-            "Your response MUST be valid JSON matching this schema: "
-            "{\"bullets\": [\"Detailed informative sentence 1.\", \"Detailed informative sentence 2.\"]}"
+            f"Provide an exhaustive, detailed academic research analysis about this slide heading: '{heading}'. "
+            f"This slide is part of a presentation titled '{title}' on the topic '{prompt}'. "
+            "Write 3 separate paragraphs of deep, detailed educational facts, concepts, definitions, or mechanisms. "
+            "Each paragraph must be a complete, highly informative sentence. Do not write short phrases or restate the title. "
+            "Separate each distinct point with a new line."
         )
         
         try:
-            model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
             response = model.generate_content(content_instruction)
-            slide_json = json.loads(response.text.strip())
-            bullets = slide_json.get('bullets', ["Deep research text expansion point placeholder."])
+            text_lines = response.text.strip().split('\n')
+            # Filter out empty entries, asterisks, or blank lines
+            bullets = [line.replace('*', '').strip() for line in text_lines if len(line.strip()) > 15]
+            
+            # If the response array parsed too short, build structured fallbacks
+            if len(bullets) < 2:
+                bullets = [
+                    f"Foundational framework analysis regarding {heading} mechanics.",
+                    "Comprehensive operational overview detailing specific structural data variables.",
+                    "Practical field case study metrics and analytical summary review."
+                ]
         except Exception:
             bullets = [
-                f"Detailed foundational analysis regarding {heading}.",
-                "Extensive supporting metric context and operational breakdown.",
-                "Core practical summary implementations and case reflections."
+                f"Foundational framework analysis regarding {heading} mechanics.",
+                "Comprehensive operational overview detailing specific structural data variables.",
+                "Practical field case study metrics and analytical summary review."
             ]
             
-        slides_data.append({"heading": heading, "bullets": bullets})
+        slides_data.append({"heading": heading, "bullets": bullets[:4]})
 
     ppt_id = str(uuid.uuid4())[:8]
     conn = get_db()
