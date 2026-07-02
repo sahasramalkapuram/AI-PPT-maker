@@ -114,10 +114,14 @@ def generate_ppt():
     if not prompt:
         return "Please input a topic description.", 400
         
-    ai_system_instruction = (
-        "You are an expert presentation maker. Generate an educational presentation layout based on the prompt. "
-        "Your response MUST be entirely valid JSON data containing a dictionary with a title and an array of slides. Do not add markdown wrapping or backticks. "
-        "Format example: {\"title\": \"Main Topic Title\", \"slides\": [{\"heading\": \"Slide Title\", \"bullets\": [\"Point 1\", \"Point 2\"]}]}"
+  ai_system_instruction = (
+        "You are an expert educational researcher and academic presentation maker. "
+        "Generate an exhaustive, information-heavy presentation layout based on the user's prompt topic. "
+        "Each slide MUST contain substantial information and deeply researched context. "
+        "Do not just provide broad headers. For every single slide, write 3 to 5 detailed, descriptive bullet points "
+        "explaining core definitions, structural mechanisms, factual data, or logical steps related to the slide's heading. "
+        "Your response MUST be entirely valid JSON data matching this schema exactly without markdown wrapping or backticks: "
+        "{\"title\": \"Comprehensive Presentation Title\", \"slides\": [{\"heading\": \"Detailed Slide Heading\", \"bullets\": [\"Extremely descriptive sentence explaining fact 1 with context.\", \"Thoroughly written point 2 expanding on details and definitions.\", \"Detailed academic point 3 providing analysis or data.\"]}]}"
     )
     
     try:
